@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+
+  <div id="app"></div>
+
+  <script>
+    let target = null;
+
+    class Dep {
+      constructor() {
+        this.subs = [];
+      }
+
+      depend(target) {
+        if (!target || this.subs.includes(target)) { return; }
+        this.subs = [...this.subs, target];
+      }
+
+      notify() {
+        this.subs.forEach( s => s());
+      }
+    }
+
+    function observe(dataObj) {
+
+      Object.keys(dataObj).forEach( key => {
+
+        // 1. set the value externally
+        let _value = dataObj[key];
+
+        // 2. for each property, create a Dep instance
+        const _Dep = new Dep();
+
+        Object.defineProperty(dataObj, key, {
+          get () {
+
+              // collect dependencies
+              if (target) {
+                _Dep.depend(target);
+              }
+
+              //return dataObj[key]; issue of Maximum call stack size - Accessing the
+              // this way is invalid.
+              return _value;
+          },
+          set (value) {
+            if (value !== _value) {
+              _value = value;
+
+              // notify deps
+              _Dep.notify();
+            }
+          }
+        });
+
+      });
+
+      return dataObj;
+    }
+
+    function watcher(fn) {
+      //debugger;
+      target = fn;
+      if (target) target();
+      target = null;
+    }
+
+    const state = observe({
+      x: 5,
+      y: 2,
+      z: 0
+    });
+
+    // watcher for y dependency
+    watcher(() => {
+      state.y = state.x + 10;
+    });
+
+    // watcher for z dependency
+    watcher(() => {
+      state.z = state.x * state.y;
+    });
+
+    // render watcher
+    watcher(() => {
+      document.querySelector('#app').innerHTML = `
+        <p>
+          <strong>X:</strong><span>${state.x}</span>
+        </p>
+        <p>
+          <strong>Y:</strong><span>${state.y}</span>
+        </p>
+        <p>
+          <strong>Z:</strong><span>${state.z}</span>
+        </p>
+
+        <button onclick="state.x += 2">Inc by 2</button>
+        <button onclick="state.x -= 2">Dec by 2</button>
+      `
+    });
+  </script>
+
+</body>
+</html>
